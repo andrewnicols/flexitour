@@ -21,14 +21,19 @@ module.exports = function(grunt) {
                 }
             },
         },
-		umd: {
+        umd: {
             all: {
                 options: {
                     src: 'src/tour.js',
                     dest: 'build/tour.js',
                     objectToExport: 'Tour',
                     deps: {
-                        'default': ['jquery'],
+                        default: ['$', 'Popper'],
+                        amd: [
+                            {'jquery': '$'},
+                            {'local_usertours/popper': 'Popper'}
+                        ],
+                        cjs: ['jquery', 'popper.js']
                     }
                 }
             }
@@ -39,7 +44,7 @@ module.exports = function(grunt) {
                 tasks: ["js"]
             },
             tests: {
-                files: ["test/*.js"],
+                files: ["test/*.js", "testFramework.js"],
                 tasks: ["mocha_istanbul:coverage"],
             }
         },

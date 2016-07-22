@@ -1,18 +1,18 @@
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module unless amdModuleId is set
-    define(["jquery"], function (a0) {
-      return (root['Tour'] = factory(a0));
+    define(["jquery","local_usertours/popper"], function (a0,b1) {
+      return (root['Tour'] = factory(a0,b1));
     });
   } else if (typeof exports === 'object') {
     // Node. Does not work with strict CommonJS, but
     // only CommonJS-like environments that support module.exports,
     // like Node.
-    module.exports = factory(require("jquery"));
+    module.exports = factory(require("jquery"),require("popper.js"));
   } else {
-    root['Tour'] = factory(jquery);
+    root['Tour'] = factory($,Popper);
   }
-}(this, function (jquery) {
+}(this, function ($, Popper) {
 
 "use strict";
 
@@ -62,25 +62,32 @@ Tour.prototype.eventHandlers;
 Tour.prototype.steps;
 
 /**
- * The current step number.
- *
- * @property    {Integer}       currentStepNumber
- */
-Tour.prototype.currentStepNumber;
-
-/**
- * The current step number.
+ * The current step node.
  *
  * @property    {jQuery}        currentStepNode
  */
 Tour.prototype.currentStepNode;
 
 /**
- * The render function to use.
+ * The current step number.
  *
- * @property    {Function}      render
+ * @property    {Number}        currentStepNumber
  */
-Tour.prototype.render;
+Tour.prototype.currentStepNumber;
+
+/**
+ * The popper for the current step.
+ *
+ * @property    {Popper}        currentStepPopper
+ */
+Tour.prototype.currentStepPopper;
+
+/**
+ * The config for the current step.
+ *
+ * @property    {Object}        currentStepConfig
+ */
+Tour.prototype.currentStepConfig;
 
 /**
  * The template content.
@@ -93,18 +100,25 @@ Tour.prototype.templateContent;
  * Initialise the tour.
  *
  * @method  init
- * @param   {object}    config  The configuration object.
+ * @param   {Object}    config  The configuration object.
  * @chainable
  */
 Tour.prototype.init = function(config) {
+    // Unset all handlers.
+    this.eventHandlers = {};
+
     // Reset the current tour states.
     this.reset();
 
     // Store the initial configuration.
     this.originalConfiguration = config || {};
 
+    this.sessionStorage = {};
+
     // Apply configuration.
     this.configure.apply(this, arguments);
+
+    return this;
 };
 
 /**
@@ -127,11 +141,10 @@ Tour.prototype.reset = function() {
     this.originalConfiguration = {};
 
     // Reset the current step number and list of steps.
-    this.currentStepNumber = 0;
     this.steps = [];
 
-    // Unset the render function.
-    this.render = null;
+    // Reset the current step number.
+    this.currentStepNumber = 0;
 
     return this;
 };
@@ -143,46 +156,63 @@ Tour.prototype.reset = function() {
  * @chainable
  */
 Tour.prototype.configure = function(config) {
-    if (typeof config !== 'object') {
-        config = {};
+    if (typeof config === 'object') {
+        // Tour name.
+        if (typeof config.tourName !== 'undefined') {
+            this.tourName = config.tourName;
+        }
+
+        // Set up eventHandlers.
+        if (config.eventHandlers) {
+            let eventName;
+            for (eventName in config.eventHandlers) {
+                config.eventHandlers[eventName].forEach(function(handler) {
+                    this.addEventHandler(eventName, handler);
+                }, this);
+            }
+        }
+
+        // Reset the step configuration.
+        this.resetStepDefaults(true);
+
+        // Configure the steps.
+        if (typeof config.steps === 'object') {
+            this.steps = config.steps;
+        }
+
+        if (typeof config.template !== 'undefined') {
+            this.templateContent = config.template;
+        }
     }
 
-    // Tour configuration:
-    // tourName
-    // strings
-    // steps
-    // eventHandlers
-    // storage
-    // template
-    // renderFunction
-
-    // Tour name.
-
-    // Configure the render function.
-    if (typeof config.renderFunction === 'function') {
-        this.render = config.renderFunction;
-    } else if (typeof this.render !== 'function') {
-        this.render = this.stepRenderer;
-    }
-
-    // Reset the step configuration.
-    this.resetStepDefaults(true);
-
-    if (typeof config.steps === 'object') {
-        this.steps = config.steps;
-    }
-
-    if (typeof config.template !== 'undefined') {
-        this.templateContent = config.template;
-    }
+    // Check that we have enough to start the tour.
+    this.checkMinimumRequirements();
 
     return this;
 };
 
 /**
+ * Check that the configuration meets the minimum requirements.
+ *
+ * @method  checkMinimumRequirements
+ * @chainable
+ */
+Tour.prototype.checkMinimumRequirements = function() {
+    // Need a tourName.
+    if (!this.tourName) {
+        throw new Error("Tour Name required");
+    }
+
+    // Need a minimum of one step.
+    if (!this.steps || !this.steps.length) {
+        throw new Error("Steps must be specified");
+    }
+};
+
+/**
  * Reset step default configuration.
  *
- * @method  configure
+ * @method  resetStepDefaults
  * @param   {Boolean}   loadOriginalConfiguration   Whether to load the original configuration supplied with the Tour.
  * @chainable
  */
@@ -201,11 +231,18 @@ Tour.prototype.resetStepDefaults = function(loadOriginalConfiguration) {
     return this;
 };
 
+/**
+ * Set the step defaults.
+ *
+ * @method  setStepDefaults
+ * @param   {Object}    stepDefaults                The step defaults to apply to all steps
+ * @chainable
+ */
 Tour.prototype.setStepDefaults = function(stepDefaults) {
     if (!this.stepDefaults) {
         this.stepDefaults = {};
     }
-    jquery.extend(
+    $.extend(
         this.stepDefaults,
         {
             element:        '',
@@ -228,7 +265,7 @@ Tour.prototype.setStepDefaults = function(stepDefaults) {
  * @return  {Integer}                   The current step number
  */
 Tour.prototype.getCurrentStepNumber = function() {
-    return this.currentStepNumber;
+    return parseInt(this.currentStepNumber, 10);
 };
 
 /**
@@ -240,8 +277,6 @@ Tour.prototype.getCurrentStepNumber = function() {
  */
 Tour.prototype.setCurrentStepNumber = function(stepNumber) {
     this.currentStepNumber = stepNumber;
-
-    return this;
 };
 
 /**
@@ -250,8 +285,10 @@ Tour.prototype.setCurrentStepNumber = function(stepNumber) {
  * @method  getNextStepNumber
  * @return  {Integer}    The next step number to display
  */
-Tour.prototype.getNextStepNumber = function() {
-    var stepNumber = this.getCurrentStepNumber();
+Tour.prototype.getNextStepNumber = function(stepNumber) {
+    if (typeof stepNumber === 'undefined') {
+        stepNumber = this.getCurrentStepNumber();
+    }
     let nextStepNumber = stepNumber + 1;
 
     // Keep checking the remaining steps.
@@ -271,8 +308,10 @@ Tour.prototype.getNextStepNumber = function() {
  * @method  getPreviousStepNumber
  * @return  {Integer}    The previous step number to display
  */
-Tour.prototype.getPreviousStepNumber = function() {
-    var stepNumber = this.getCurrentStepNumber();
+Tour.prototype.getPreviousStepNumber = function(stepNumber) {
+    if (typeof stepNumber === 'undefined') {
+        stepNumber = this.getCurrentStepNumber();
+    }
     let previousStepNumber = stepNumber - 1;
 
     // Keep checking the remaining steps.
@@ -294,10 +333,8 @@ Tour.prototype.getPreviousStepNumber = function() {
  * @return  {Boolean}               Whether the step is the final step
  */
 Tour.prototype.isLastStep = function(stepNumber) {
-    let nextStepNumber = stepNumber;
-    if (typeof nextStepNumber === 'undefined') {
-        nextStepNumber = this.getNextStepNumber();
-    }
+    let nextStepNumber = this.getNextStepNumber(stepNumber);
+
     return nextStepNumber === null;
 };
 
@@ -309,10 +346,8 @@ Tour.prototype.isLastStep = function(stepNumber) {
  * @return  {Boolean}               Whether the step is the first step
  */
 Tour.prototype.isFirstStep = function(stepNumber) {
-    let previousStepNumber = stepNumber;
-    if (typeof previousStepNumber === 'undefined') {
-        previousStepNumber = this.getPreviousStepNumber();
-    }
+    let previousStepNumber = this.getPreviousStepNumber(stepNumber);
+
     return previousStepNumber === null;
 };
 
@@ -321,20 +356,53 @@ Tour.prototype.isFirstStep = function(stepNumber) {
  *
  * @method  isStepPotentiallyVisible
  * @param   {Integer}   stepNumber  Step number to test
- * @return  {Boolean}               Whether the step is the first step
+ * @return  {Boolean}               Whether the step is the potentially visible
  */
 Tour.prototype.isStepPotentiallyVisible = function(stepConfig) {
     if (!stepConfig) {
+        // Without step config, there can be no step.
         return false;
     }
-    if (typeof stepConfig.delay !== 'undefined' && stepConfig.delay) {
+
+    if (this.isStepActuallyVisible(stepConfig)) {
+        // If it is actually visible, it is already potentially visible.
         return true;
+    }
+
+    if (typeof stepConfig.orphan !== 'undefined' && stepConfig.orphan) {
+        // Orphan steps have no target. They are always visible.
+        return true;
+    }
+
+    if (typeof stepConfig.delay !== 'undefined' && stepConfig.delay) {
+        // TODO...
+        // Only return true if the activated has not been used yet.
+        return true;
+    }
+
+    // Not theoretically, or actually visible.
+    return false;
+};
+
+/**
+ * Is this step actually visible?
+ *
+ * @method  isStepActuallyVisible
+ * @param   {Integer}   stepNumber  Step number to test
+ * @return  {Boolean}               Whether the step is actually visible
+ */
+Tour.prototype.isStepActuallyVisible = function(stepConfig) {
+    if (!stepConfig) {
+        // Without step config, there can be no step.
+        return false;
     }
 
     let target = this.getStepTarget(stepConfig);
     if (target && target.length) {
+        // Without a target, there can be no step.
         return !!target.length;
     }
+
     return false;
 };
 
@@ -345,7 +413,7 @@ Tour.prototype.isStepPotentiallyVisible = function(stepConfig) {
  * @chainable
  */
 Tour.prototype.next = function() {
-    return this.renderStep(this.getNextStepNumber());
+    return this.gotoStep(this.getNextStepNumber());
 };
 
 /**
@@ -355,7 +423,7 @@ Tour.prototype.next = function() {
  * @chainable
  */
 Tour.prototype.previous = function() {
-    return this.renderStep(this.getPreviousStepNumber());
+    return this.gotoStep(this.getPreviousStepNumber());
 };
 
 /**
@@ -366,17 +434,6 @@ Tour.prototype.previous = function() {
  * @chainable
  */
 Tour.prototype.gotoStep = function(stepNumber) {
-    return this.renderStep(stepNumber);
-};
-
-/**
- * Render the specified step number.
- *
- * @method  renderStep
- * @param   {Integer}   stepNumber      The step number to display
- * @chainable
- */
-Tour.prototype.renderStep = function(stepNumber) {
     let stepConfig = this.getStepConfig(stepNumber);
     if (!stepConfig) {
         return this.endTour();
@@ -386,8 +443,7 @@ Tour.prototype.renderStep = function(stepNumber) {
 
     this.fireEventHandlers('beforeRender', stepConfig);
 
-    this.render(stepConfig);
-    this.setCurrentStepNumber(stepNumber);
+    this.renderStep(stepConfig);
 
     this.fireEventHandlers('afterRender', stepConfig);
 
@@ -402,7 +458,7 @@ Tour.prototype.renderStep = function(stepNumber) {
  * @return  {Object}                    The step configuration
  */
 Tour.prototype.getStepConfig = function(stepNumber) {
-    if (stepNumber < 0 || stepNumber >= this.steps.length) {
+    if (stepNumber === null || stepNumber < 0 || stepNumber >= this.steps.length) {
         return null;
     }
 
@@ -410,7 +466,7 @@ Tour.prototype.getStepConfig = function(stepNumber) {
     let stepConfig = this.normalizeStepConfig(this.steps[stepNumber]);
 
     // Add the stepNumber to the stepConfig.
-    stepConfig = jquery.extend(stepConfig, {stepNumber: stepNumber});
+    stepConfig = $.extend(stepConfig, {stepNumber: stepNumber});
 
     return stepConfig;
 };
@@ -423,17 +479,12 @@ Tour.prototype.getStepConfig = function(stepNumber) {
  * @return  {Object}                    The normalised step configuration
  */
 Tour.prototype.normalizeStepConfig = function(stepConfig) {
-    stepConfig = jquery.extend({}, this.stepDefaults, stepConfig);
+    stepConfig = $.extend({}, this.stepDefaults, stepConfig);
 
-    // TODO REMOVE
-    if (!stepConfig.target && stepConfig.element) {
-        stepConfig.target = stepConfig.element;
-    }
-
-    if (!stepConfig.body && stepConfig.content) {
-        stepConfig.body = stepConfig.content;
-    }
-    // END TODO
+    stepConfig = $.extend({}, {
+        attachTo: stepConfig.target,
+        attachPoint: 'after',
+    }, stepConfig);
 
     return stepConfig;
 };
@@ -445,11 +496,11 @@ Tour.prototype.normalizeStepConfig = function(stepConfig) {
  *
  * @method  getStepTarget
  * @param   {Object}    stepConfig      The step configuration
- * @return  {jquery}
+ * @return  {$}
  */
 Tour.prototype.getStepTarget = function(stepConfig) {
     if (stepConfig.target) {
-        return jquery(stepConfig.target);
+        return $(stepConfig.target);
     }
 
     return null;
@@ -499,20 +550,42 @@ Tour.prototype.addEventHandler = function(eventName, handler) {
 Tour.prototype.processStepListeners = function(stepConfig) {
     this.listeners.push(
         // Next/Previous buttons.
-        this.currentStepNode.on('click', '[data-role="next"]', jquery.proxy(this.next, this)),
-        this.currentStepNode.on('click', '[data-role="previous"]', jquery.proxy(this.previous, this)),
+        {
+            node: this.currentStepNode,
+            args: ['click', '[data-role="next"]', $.proxy(this.next, this)],
+        },
+        {
+            node: this.currentStepNode,
+            args: ['click', '[data-role="previous"]', $.proxy(this.previous, this)],
+        },
 
-        // Close (end tour) buttons.
-        this.currentStepNode.on('click', '[data-role="end"]', jquery.proxy(this.endTour, this))
+        // Close and end tour buttons.
+        {
+            node: this.currentStepNode,
+            args: ['click', '[data-role="end"]', $.proxy(this.endTour, this)],
+        },
+
+        // Keypresses.
+        {
+            node: $('body'),
+            args: ['keydown', $.proxy(this.handleKeyPress, this)],
+        }
     );
 
 
     if (stepConfig.moveOnClick) {
-        let target = this.getStepTarget(stepConfig);
+        let targetNode = this.getStepTarget(stepConfig);
         this.listeners.push(
-            target.on('click', jquery.proxy(this.next(), this))
+            {
+                node: targetNode,
+                args: ['click', $.proxy(this.next, this)],
+            }
         );
     }
+
+    this.listeners.forEach(function(listener) {
+        listener.node.on.apply(listener.node, listener.args);
+    });
 
     return this;
 };
@@ -526,10 +599,9 @@ Tour.prototype.processStepListeners = function(stepConfig) {
 Tour.prototype.resetStepListeners = function() {
     // Stop listening to all external handlers.
     if (this.listeners) {
-        while (this.listeners.length) {
-            let listener = this.listeners.pop();
-            jquery().off(listener);
-        }
+        this.listeners.forEach(function(listener) {
+            listener.node.off.apply(listener.node, listener.args);
+        });
     }
     this.listeners = [];
 
@@ -539,13 +611,17 @@ Tour.prototype.resetStepListeners = function() {
 /**
  * The standard step renderer.
  *
- * @method  stepRenderer
+ * @method  renderStep
  * @param   {Object}    stepConfig      The step configuration of the step
  * @chainable
  */
-Tour.prototype.stepRenderer = function(stepConfig) {
-    // Fetch the template and convert it to a jquery object.
-    let template = jquery(this.getTemplateContent());
+Tour.prototype.renderStep = function(stepConfig) {
+    // Store the current step configuration for later.
+    this.currentStepConfig = stepConfig;
+    this.setCurrentStepNumber(stepConfig.stepNumber);
+
+    // Fetch the template and convert it to a $ object.
+    let template = $(this.getTemplateContent());
 
     // Title.
     template.find('[data-placeholder="title"]')
@@ -569,15 +645,19 @@ Tour.prototype.stepRenderer = function(stepConfig) {
         template.find('[data-role="next"]').prop('disabled', false);
     }
 
+    template.find('[data-role="previous"]').attr('role', 'button');
+    template.find('[data-role="next"]').attr('role', 'button');
+    template.find('[data-role="end"]').attr('role', 'button');
+
+    // Replace the template with the updated version.
+    stepConfig.template = template;
+
     // Add to the page.
-    this.addStepToPage(stepConfig, template);
+    this.addStepToPage(stepConfig);
 
     // Process step listeners after adding to the page.
     // This uses the currentNode.
     this.processStepListeners(stepConfig);
-
-    // Scroll into view.
-    this.scrollIntoView();
 
     // Announce via ARIA.
     this.announceStep(stepConfig);
@@ -589,10 +669,10 @@ Tour.prototype.stepRenderer = function(stepConfig) {
  * Getter for the template content.
  *
  * @method  getTemplateContent
- * @return  {jquery}
+ * @return  {$}
  */
 Tour.prototype.getTemplateContent = function() {
-    return jquery(this.templateContent).clone();
+    return $(this.templateContent).clone();
 };
 
 /**
@@ -600,41 +680,74 @@ Tour.prototype.getTemplateContent = function() {
  *
  * @method  addStepToPage
  * @param   {Object}    stepConfig      The step configuration of the step
- * @param   {String}    stepContent     The step content
  * @chainable
  */
-Tour.prototype.addStepToPage = function(stepConfig, stepContent) {
-    stepContent.insertAfter(this.getStepTarget(stepConfig));
+Tour.prototype.addStepToPage = function(stepConfig) {
+    let stepContent = stepConfig.template;
 
-    // TODO Will remove this.
-    stepContent.show();
-
-    this.currentStepNode = stepContent;
-
-    this.positionStep(stepConfig);
-
-    return this;
-};
-
-/**
- * Helper to scroll the step into view.
- *
- * @method  scrollIntoView
- * @chainable
- */
-Tour.prototype.scrollIntoView = function() {
-    let offsetTop = this.currentStepNode.offset().top;
-    let windowHeight = jquery(window).height();
-
-    // Set the scrollTop such that it will try to show the step in the middle of the screen.
-    let scrollTop = Math.max(0, offsetTop - (windowHeight / 2));
+    // Create the stepNode from the template data.
+    this.currentStepNode = $('<span data-flexitour="container"></span>')
+        .html(stepConfig.template)
+        .hide();
 
     // The scroll animation occurs on the body or html.
-    jquery('body, html')
-        // Stop any existing animations first.
-        .stop(true, true)
+    let animationTarget = $('body, html')
+        .stop(true, true);
+
+    if (this.isStepActuallyVisible(stepConfig)) {
+        let zIndex = this.calculateZIndex(this.getStepTarget(stepConfig));
+        if (zIndex) {
+            stepConfig.zIndex = zIndex + 1;
+        }
+
+        if (stepConfig.zIndex) {
+            this.currentStepNode.css('zIndex', stepConfig.zIndex + 1);
+        }
+
+        // Add the backdrop.
+        this.positionBackdrop(stepConfig);
+
+        if (stepConfig.attachPoint === 'append') {
+            $(stepConfig.attachTo).append(this.currentStepNode);
+        } else {
+            this.currentStepNode.insertAfter($(stepConfig.attachTo));
+        }
+
         // Animate scrollTop to scroll into view.
-        .animate({scrollTop: Math.ceil(scrollTop)});
+        animationTarget.animate({
+            scrollTop: this.calculateScrollTop(stepConfig),
+        });
+
+        // Position the step on the page.
+        // TODO generalise this. At the moment it includes popper.
+        animationTarget.promise().then($.proxy(function() {
+                this.positionStep(stepConfig);
+            }, this));
+
+    } else if (stepConfig.orphan) {
+        stepConfig.isOrphan = true;
+
+        // This will be appended to the body instead.
+        stepConfig.attachTo = 'body';
+        stepConfig.attachPoint = 'append';
+
+        // Add the backdrop.
+        this.positionBackdrop(stepConfig);
+
+        // This is an orphaned step.
+        this.currentStepNode.addClass('orphan');
+
+        // It lives in the body.
+        $(stepConfig.attachTo).append(this.currentStepNode);
+
+        this.currentStepNode.offset(this.calculateStepPositionInPage());
+    }
+
+    animationTarget.promise()
+        .done($.proxy(function() {
+            // Fade the step in.
+            this.currentStepNode.fadeIn();
+        }, this));
 
     return this;
 };
@@ -647,7 +760,69 @@ Tour.prototype.scrollIntoView = function() {
  * @chainable
  */
 Tour.prototype.announceStep = function(stepConfig) {
+    // Setup the step Dialogue as per:
+    // * https://www.w3.org/TR/wai-aria-practices/#dialog_nonmodal
+    // * https://www.w3.org/TR/wai-aria-practices/#dialog_modal
+
+    // Generally, a modal dialog has a role of dialog.
+    this.currentStepNode.attr('role', 'dialog');
+    this.currentStepNode.attr('tabindex', -1);
+
+    // Configure ARIA attributes on the target.
+    let target = this.getStepTarget(stepConfig);
+    if (target) {
+        // Generate an ID for the current step node.
+        let stepId = 'tour-step-' + this.tourName + '-' + stepConfig.stepNumber;
+        this.currentStepNode.attr('id', stepId);
+
+        if (!target.attr('tabindex')) {
+            target.attr('tabindex', -1);
+        }
+
+        target
+            .data('original-labelledby', target.attr('aria-labelledby'))
+            .attr('aria-labelledby', stepId)
+            .focus();
+    }
+
+    // TODO
+    // Capture tab moves if possible.
+
     return this;
+};
+
+/**
+ * Handle key presses.
+ *
+ * @method  handleKeyPress
+ * @param   {EventFacade} e
+ */
+Tour.prototype.handleKeyPress = function(e) {
+    switch (e.keyCode) {
+        // 117 = F6 - switch between step and target.
+        case 117:
+            if (this.currentStepConfig.isOrphan) {
+                return;
+            }
+            let activeElement = $(document.activeElement);
+            let stepTarget = this.getStepTarget(this.currentStepConfig);
+            if (this.currentStepNode.is(activeElement)) {
+                stepTarget.focus();
+            } else if (stepTarget.is(activeElement)) {
+                this.currentStepNode.focus();
+            } else if (activeElement.closest(stepTarget).length) {
+                this.currentStepNode.focus();
+            } else {
+                stepTarget.focus();
+            }
+            break;
+
+        // 27 = Escape.
+        // End the tour.
+        case 117:
+            this.endTour();
+            break;
+    }
 };
 
 /**
@@ -662,14 +837,8 @@ Tour.prototype.startTour = function(startAt) {
         startAt = this.getCurrentStepNumber();
     }
 
-    if (this.isMarkedComplete()) {
-        return this;
-    }
-
     this.fireEventHandlers('beforeStart', startAt);
-
     this.gotoStep(startAt);
-
     this.fireEventHandlers('afterStart', startAt);
 
     return this;
@@ -682,9 +851,6 @@ Tour.prototype.startTour = function(startAt) {
  * @chainable
  */
 Tour.prototype.restartTour = function() {
-    // Clear the completion tag.
-    this.clearCompletionFlag();
-
     return this.startTour(0);
 };
 
@@ -695,16 +861,18 @@ Tour.prototype.restartTour = function() {
  * @chainable
  */
 Tour.prototype.endTour = function() {
-    // The beforeEnd event.
     this.fireEventHandlers('beforeEnd');
 
-    // Hide the current step.
-    this.hide();
+    if (this.currentStepConfig) {
+        let previousTarget = this.getStepTarget(this.currentStepConfig);
+        if (!previousTarget.attr('tabindex')) {
+            previousTarget.attr('tabindex', '-1');
+        }
+        previousTarget.focus();
+    }
 
-    // Mark the tour as complete.
-    this.markComplete();
+    this.hide(true);
 
-    // The afterEnd event.
     this.fireEventHandlers('afterEnd');
 
     return this;
@@ -716,17 +884,49 @@ Tour.prototype.endTour = function() {
  * @method hide
  * @chainable
  */
-Tour.prototype.hide = function() {
-    // Hide any currently visible steps.
-    // TODO add events.
-    // TODO convert to transitions?
+Tour.prototype.hide = function(transition) {
+    this.fireEventHandlers('beforeHide');
 
     if (this.currentStepNode && this.currentStepNode.length) {
         this.currentStepNode.hide();
+        if (this.currentStepPopper) {
+            this.currentStepPopper.destroy();
+        }
     }
+
+    // Restore original target configuration.
+    if (this.currentStepConfig) {
+        let target = this.getStepTarget(this.currentStepConfig);
+        if (target) {
+            if (target.data('original-labelledby')) {
+                target.attr('aria-labelledby', target.data('original-labelledby'));
+            }
+
+            if (target.data('original-tabindex')) {
+                target.attr('tabindex', target.data('tabindex'));
+            }
+        }
+
+        // Clear the step configuration.
+        this.currentStepConfig = null;
+    }
+
+    let fadeTime = 0;
+    if (transition) {
+        fadeTime = 400;
+    }
+
+    // Remove the backdrop features.
+    $('[data-flexitour="step-background"]').remove();
+    $('[data-flexitour="step-backdrop"]').removeAttr('data-flexitour');
+    $('[data-flexitour="backdrop"]').fadeOut(fadeTime, function() {
+        $(this).remove();
+    });
 
     // Reset the listeners.
     this.resetStepListeners();
+
+    this.fireEventHandlers('afterHide');
 
     return this;
 };
@@ -745,39 +945,6 @@ Tour.prototype.show = function() {
 };
 
 /**
- * Mark the current step as complete.
- *
- * @todo
- * @method  markComplete
- * @chainable
- */
-Tour.prototype.markComplete = function() {
-    return this;
-};
-
-/**
- * Clear the completion flag for this tour.
- *
- * @todo
- * @method  clearCompletionFlag
- * @chainable
- */
-Tour.prototype.clearCompletionFlag = function() {
-    return this;
-};
-
-/**
- * Determine whether the tour has already been marked as complete.
- *
- * @todo
- * @method  isMarkedComplete
- * @return  {Boolean}
- */
-Tour.prototype.isMarkedComplete = function() {
-    return false;
-};
-
-/**
  * Return the current step node.
  *
  * @method  getStepContainer
@@ -788,11 +955,61 @@ Tour.prototype.getStepContainer = function() {
 };
 
 /**
- * ============================================================================
- * ============================================================================
- * ============================================================================
- * ============================================================================
+ * Calculate scrollTop.
+ *
+ * @method  calculateScrollTop
+ * @param   {Object}    stepConfig      The step configuration of the step
+ * @return  {Number}
  */
+Tour.prototype.calculateScrollTop = function(stepConfig) {
+    let scrollTop = $(window).scrollTop();
+    let viewportHeight = $(window).height();
+    let targetNode = this.getStepTarget(stepConfig);
+
+    if (stepConfig.placement === 'top') {
+        // If the placement is top, center scroll at the top of the target.
+        scrollTop = targetNode.offset().top - (viewportHeight / 2);
+    } else if (stepConfig.placement === 'bottom') {
+        // If the placement is bottom, center scroll at the bottom of the target.
+        scrollTop = targetNode.offset().top + targetNode.height() - (viewportHeight / 2);
+    } else if (targetNode.height() <= (viewportHeight * 0.8)) {
+        // If the placement is left/right, and the target fits in the viewport, centre screen on the target
+        scrollTop = targetNode.offset().top - ((viewportHeight - targetNode.height()) / 2);
+    } else {
+        // If the placement is left/right, and the target is bigger than the viewport, set scrollTop to target.top + buffer
+        // and change step attachmentTarget to top+.
+        scrollTop = targetNode.offset().top - (viewportHeight * 0.2);
+    }
+
+    // Never scroll over the top.
+    scrollTop = Math.max(0, scrollTop);
+
+    // Never scroll beyond the bottom.
+    scrollTop = Math.min($(document).height() - viewportHeight, scrollTop);
+
+    return Math.ceil(scrollTop);
+};
+
+/**
+ * Calculate dialogue position for page middle.
+ *
+ * @method  calculateScrollTop
+ * @return  {Number}
+ */
+Tour.prototype.calculateStepPositionInPage = function() {
+    let viewportHeight = $(window).height();
+    let stepHeight = this.currentStepNode.height();
+    let scrollTop = $(window).scrollTop();
+
+    let viewportWidth = $(window).width();
+    let stepWidth = this.currentStepNode.width();
+    let scrollLeft = $(window).scrollLeft();
+
+    return {
+        top: Math.ceil(scrollTop + ((viewportHeight - stepHeight) / 2)),
+        left: Math.ceil(scrollLeft + ((viewportWidth - stepWidth) / 2)),
+    };
+};
 
 /**
  * Position the step on the page.
@@ -808,168 +1025,205 @@ Tour.prototype.positionStep = function(stepConfig) {
         return this;
     }
 
-    let el = content[0];
-    let pos = this.getPosition(content);
-    let actualWidth = el.offsetWidth;
-    let actualHeight = el.offsetHeight;
+    let flipBehavior;
+    switch (stepConfig.placement) {
+        case 'left':
+            flipBehavior = ['left', 'right', 'top', 'bottom'];
+            break;
+        case 'right':
+            flipBehavior = ['right', 'left', 'top', 'bottom'];
+            break;
+        case 'top':
+            flipBehavior = ['top', 'bottom', 'right', 'left'];
+            break;
+        case 'bottom':
+            flipBehavior = ['bottom', 'top', 'right', 'left'];
+            break;
+        default:
+            flipBehavior = 'flip';
+            break;
+    }
 
-    // Funky stuff for responsiveness.
-    // TODO
-
-    let calculatedOffset = this.getCalculatedOffset(stepConfig.placement, pos, actualWidth, actualHeight);
-
-    this.applyPlacement(calculatedOffset, stepConfig.placement);
+    this.currentStepPopper = new Popper(
+        this.getStepTarget(stepConfig),
+        content[0], {
+            placement: stepConfig.placement + '-start',
+            flipBehavior: flipBehavior,
+            removeOnDestroy: true,
+        }
+    );
 
     return this;
 };
 
 /**
- * Get the current position of the supplied object.
+ * Add the backdrop.
  *
- * @param   {DOMElement}    content     The content to determine the position of
- * @return  {object}                    The top, left, scroll, width, height, and bounds of the supplied object
+ * @method  positionBackdrop
+ * @param   {Object}    stepConfig      The step configuration of the step
+ * @chainable
  */
-Tour.prototype.getPosition = function(content) {
-    // Normalise the input.
-    content = $(content);
-    let element = content[0];
+Tour.prototype.positionBackdrop = function(stepConfig) {
+    if (stepConfig.backdrop) {
+        let backdrop = $('<div data-flexitour="backdrop"></div>');
 
-    let bounds = element.getBoundingClientRect();
+        if (stepConfig.zIndex) {
+            if (stepConfig.attachPoint === 'append') {
+                $(stepConfig.attachTo).append(backdrop);
+            } else {
+                backdrop.insertAfter($(stepConfig.attachTo));
+            }
+        } else {
+            $('body').append(backdrop);
+        }
 
-    let elOffset, scroll, outerDims;
-    if (element.tagName == 'BODY') {
-        // The supplied content is the body for some reason.
-        // Have sensible fallbacks.
-        elOffset = {
-            top:    0,
-            left:   0,
-        };
+        if (this.isStepActuallyVisible(stepConfig)) {
+            // The step has a visible target.
+            // Punch a hole through the backdrop.
+            let background = $('<div data-flexitour="step-background"></div>');
 
-        scroll = {
-            scroll: document.documentElement.scrollTop || document.body.scrollTop,
-        };
+            let targetNode = this.getStepTarget(stepConfig);
 
-        outerDims = {
-            width:  jquery(window).width(),
-            height: jquery(window).height(),
-        };
-    } else {
-        elOffset = content.offest();
-        scroll = {
-            scroll: content.scrollTop()
-        };
-        outerDims = null;
+            let buffer = 10;
+            buffer = 0;
+
+            background.css({
+                width: (buffer * 2) + targetNode.outerWidth(),
+                height: (buffer * 2) + targetNode.outerHeight(),
+                left: buffer + targetNode.offset().left,
+                top: buffer + targetNode.offset().top,
+                backgroundColor: this.calculateInherittedBackgroundColor(targetNode),
+            });
+
+            let targetRadius = targetNode.css('borderRadius');
+            if (targetRadius && targetRadius !== $('body').css('borderRadius')) {
+                background.css('borderRadius', targetRadius);
+            }
+
+            let targetPosition = this.calculatePosition(targetNode);
+            if (targetPosition) {
+                background.css('top', 0);
+            }
+
+            let fader = background.clone();
+            fader.css({
+                backgroundColor: backdrop.css('backgroundColor'),
+                opacity: backdrop.css('opacity'),
+            });
+            fader.attr('data-flexitour', 'step-background-fader');
+
+            if (stepConfig.zIndex) {
+                if (stepConfig.attachPoint === 'append') {
+                    $(stepConfig.attachTo).append(background);
+                } else {
+                    fader.insertAfter($(stepConfig.attachTo));
+                    background.insertAfter($(stepConfig.attachTo));
+                }
+            } else {
+                $('body').append(fader);
+                $('body').append(background);
+            }
+
+            // Add the backdrop data to the actual target.
+            // This is the part which actually does the work.
+            targetNode.attr('data-flexitour', 'step-backdrop');
+
+            if (stepConfig.zIndex) {
+                backdrop.css('zIndex', stepConfig.zIndex);
+                background.css('zIndex', stepConfig.zIndex + 1);
+
+                // TODO Store the old zIndex.
+                targetNode.css('zIndex', stepConfig.zIndex + 2);
+            }
+
+            fader.fadeOut('2000', function() {
+                //$(this).remove();
+            });
+            window.fader = fader;
+        }
     }
-
-    return jquery.extend({}, bounds, scroll, outerDims, elOffset);
+    return this;
 };
 
 /**
- * Get the calculated offset.
+ * Calculate the inheritted z-index.
  *
+ * @method  calculateZIndex
+ * @param   {jQuery}    elem                        The element to calculate z-index for
+ * @return  {Number}                                Calculated z-index
  */
-Tour.prototype.getCalculatedOffset = function (placement, pos, actualWidth, actualHeight) {
-    if (placement === 'bottom') {
-        return {
-            top:    pos.top + pos.height,
-            left:   pos.left + pos.width / 2 - actualWidth / 2,
-        };
-    } else if (placement === 'top') {
-        return {
-            top:    pos.top - actualHeight,
-            left:   pos.left + pos.width / 2 - actualWidth / 2,
-        };
-    } else if (placement === 'left') {
-        return {
-            top:    pos.top + pos.height / 2 - actualHeight / 2,
-            left:   pos.left - actualWidth
-        };
-    } else {
-        return {
-            top:    pos.top + pos.height / 2 - actualHeight / 2,
-            left:   pos.left + pos.width
-        };
-    }
-};
-
-Tour.prototype.applyPlacement = function (offset, placement) {
-    var $tip   = this.getStepContainer().find('[data-role="step"]');
-    var width  = $tip[0].offsetWidth;
-    var height = $tip[0].offsetHeight;
-
-    // manually read margins because getBoundingClientRect includes difference
-    var marginTop = parseInt($tip.css('margin-top'), 10);
-    var marginLeft = parseInt($tip.css('margin-left'), 10);
-
-    // we must check for NaN for ie 8/9
-    if (isNaN(marginTop))  marginTop  = 0;
-    if (isNaN(marginLeft)) marginLeft = 0;
-
-    offset.top  += marginTop;
-    offset.left += marginLeft;
-
-    // $.fn.offset doesn't round pixel values
-    // so we use setOffset directly with our own function B-0
-    jquery.offset.setOffset($tip[0], jquery.extend({
-        using: function (props) {
-            $tip.css({
-                top: Math.round(props.top),
-                left: Math.round(props.left)
-            });
+Tour.prototype.calculateZIndex = function(elem) {
+    elem = $(elem);
+    while (elem.length && elem[0] !== document) {
+        // Ignore z-index if position is set to a value where z-index is ignored by the browser
+        // This makes behavior of this function consistent across browsers
+        // WebKit always returns auto if the element is positioned.
+        let position = elem.css("position");
+        if (position === "absolute" || position === "relative" || position === "fixed") {
+            // IE returns 0 when zIndex is not specified
+            // other browsers return a string
+            // we ignore the case of nested elements with an explicit value of 0
+            // <div style="z-index: -10;"><div style="z-index: 0;"></div></div>
+            let value = parseInt(elem.css( "zIndex" ), 10);
+            if (!isNaN(value) && value !== 0) {
+                return value;
+            }
         }
-    }, offset), 0);
-
-    $tip.addClass('in');
-
-    // check to see if placing tip in new offset caused the tip to resize itself
-    var actualWidth  = $tip[0].offsetWidth;
-    var actualHeight = $tip[0].offsetHeight;
-
-    if (placement == 'top' && actualHeight != height) {
-        offset.top = offset.top + height - actualHeight;
+        elem = elem.parent();
     }
 
-    var delta = this.getViewportAdjustedDelta(placement, offset, actualWidth, actualHeight);
-
-    if (delta.left) offset.left += delta.left;
-    else offset.top += delta.top;
-
-    var isVertical          = /top|bottom/.test(placement);
-    var arrowDelta          = isVertical ? delta.left * 2 - width + actualWidth : delta.top * 2 - height + actualHeight;
-    var arrowOffsetPosition = isVertical ? 'offsetWidth' : 'offsetHeight';
-
-    $tip.offset(offset);
-    //this.replaceArrow(arrowDelta, $tip[0][arrowOffsetPosition], isVertical);
+    return 0;
 };
 
-Tour.prototype.getViewportAdjustedDelta = function (placement, pos, actualWidth, actualHeight) {
-    var delta = { top: 0, left: 0 };
-    return delta;
-    if (!this.$viewport) return delta;
+/**
+ * Calculate the inheritted background colour.
+ *
+ * @method  calculateInherittedBackgroundColor
+ * @param   {jQuery}    elem                        The element to calculate colour for
+ * @return  {String}                                Calculated background colour
+ */
+Tour.prototype.calculateInherittedBackgroundColor = function(elem) {
+    // Use a fake node to compare each element against.
+    let fakeNode = $('<div>').hide();
+    $('body').append(fakeNode);
+    let fakeElemColor = fakeNode.css('backgroundColor');
+    fakeNode.remove();
 
-    var viewportPadding = this.options.viewport && this.options.viewport.padding || 0;
-    var viewportDimensions = this.getPosition(this.$viewport);
-
-    if (/right|left/.test(placement)) {
-        var topEdgeOffset    = pos.top - viewportPadding - viewportDimensions.scroll;
-        var bottomEdgeOffset = pos.top + viewportPadding - viewportDimensions.scroll + actualHeight;
-        if (topEdgeOffset < viewportDimensions.top) { // top overflow
-            delta.top = viewportDimensions.top - topEdgeOffset;
-        } else if (bottomEdgeOffset > viewportDimensions.top + viewportDimensions.height) { // bottom overflow
-            delta.top = viewportDimensions.top + viewportDimensions.height - bottomEdgeOffset;
+    elem = $(elem);
+    while (elem.length && elem[0] !== document) {
+        let color = elem.css('backgroundColor');
+        if (color !== fakeElemColor) {
+            return color;
         }
-    } else {
-        var leftEdgeOffset  = pos.left - viewportPadding;
-        var rightEdgeOffset = pos.left + viewportPadding + actualWidth;
-        if (leftEdgeOffset < viewportDimensions.left) { // left overflow
-            delta.left = viewportDimensions.left - leftEdgeOffset;
-        } else if (rightEdgeOffset > viewportDimensions.right) { // right overflow
-            delta.left = viewportDimensions.left + viewportDimensions.width - rightEdgeOffset;
-        }
+        elem = elem.parent();
     }
 
-    return delta;
+    return null;
 };
+
+/**
+ * Calculate the inheritted position.
+ *
+ * @method  calculatePosition
+ * @param   {jQuery}    elem                        The element to calculate position for
+ * @return  {String}                                Calculated position
+ */
+Tour.prototype.calculatePosition = function(elem) {
+    elem = $(elem);
+    while (elem.length && elem[0] !== document) {
+        let position = elem.css('position');
+        if (position !== 'static') {
+            return position;
+        }
+        elem = elem.parent();
+    }
+
+    return null;
+};
+
+if (typeof exports === 'object') {
+    module.exports = Tour;
+}
 
 return Tour;
 
