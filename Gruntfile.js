@@ -53,6 +53,7 @@ module.exports = function(grunt) {
     grunt.loadNpmTasks('grunt-umd');
     grunt.loadNpmTasks('grunt-contrib-watch');
 
-    grunt.registerTask("js", ["umd:all", "mocha_istanbul:coverage"]);
+    grunt.registerTask("js", ["umd:all", "test"]);
+    grunt.registerTask("test", ["mocha_istanbul:coverage"]);
     grunt.registerTask("default", ["js", "watch"]);
 };
