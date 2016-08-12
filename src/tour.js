@@ -552,7 +552,7 @@ Tour.prototype.processStepListeners = function(stepConfig) {
         // Keypresses.
         {
             node: $('body'),
-            args: ['keydown', $.proxy(this.handleKeyPress, this)],
+            args: ['keydown', $.proxy(this.handleKeyDown, this)],
         }
     );
 
@@ -776,29 +776,84 @@ Tour.prototype.announceStep = function(stepConfig) {
 };
 
 /**
- * Handle key presses.
+ * Handle key down events.
  *
- * @method  handleKeyPress
+ * @method  handleKeyDown
  * @param   {EventFacade} e
  */
-Tour.prototype.handleKeyPress = function(e) {
+Tour.prototype.handleKeyDown = function(e) {
+    let tabbableSelector = 'a[href], link[href], [draggable=true], [contenteditable=true], :input:enabled, [tabindex], button';
     switch (e.keyCode) {
         // 117 = F6 - switch between step and target.
         case 117:
-            if (this.currentStepConfig.isOrphan) {
-                return;
-            }
-            let activeElement = $(document.activeElement);
-            let stepTarget = this.getStepTarget(this.currentStepConfig);
-            if (this.currentStepNode.is(activeElement)) {
-                stepTarget.focus();
-            } else if (stepTarget.is(activeElement)) {
-                this.currentStepNode.focus();
-            } else if (activeElement.closest(stepTarget).length) {
-                this.currentStepNode.focus();
-            } else {
-                stepTarget.focus();
-            }
+            (function() {
+                if (this.currentStepConfig.isOrphan) {
+                    return;
+                }
+                let activeElement = $(document.activeElement);
+                let stepTarget = this.getStepTarget(this.currentStepConfig);
+                if (this.currentStepNode.is(activeElement)) {
+                    stepTarget.focus();
+                } else if (stepTarget.is(activeElement)) {
+                    this.currentStepNode.focus();
+                } else if (activeElement.closest(stepTarget).length) {
+                    this.currentStepNode.focus();
+                } else {
+                    stepTarget.focus();
+                }
+            }).call(this);
+            break;
+
+        // 9 == Tab - trap focus for items with a backdrop.
+        case 9:
+            // Tab must be handled on key up only in this instance.
+            (function() {
+                if (!this.currentStepConfig.hasBackdrop) {
+                    // Trapping tab focus is only handled for those steps with a backdrop.
+                    return;
+                }
+                let activeElement = $(document.activeElement);
+
+                let tabbableNodes = $(tabbableSelector);
+                let nextNode;
+
+                let currentIndex;
+                tabbableNodes.filter(function(index, element) {
+                    if (activeElement.is(element)) {
+                        currentIndex = index;
+                        return false;
+                    }
+                });
+
+                if (currentIndex) {
+                    let direction = 1;
+                    if (e.shiftKey) {
+                        direction = -1;
+                    }
+                    nextNode = $(tabbableNodes[currentIndex + direction]);
+                }
+
+                let stepTarget = this.getStepTarget(this.currentStepConfig);
+
+                let focusRelevant = nextNode.closest(stepTarget).length;
+                    focusRelevant = focusRelevant || nextNode.closest(this.currentStepNode).length;
+
+                if (!focusRelevant) {
+                    if (e.shiftKey) {
+                        // Focus on the last tabbable node in the step.
+                        this.currentStepNode.find(tabbableSelector).last().focus();
+                    } else {
+                        if (this.currentStepConfig.isOrphan) {
+                            // Focus on the step - there is no target.
+                            this.currentStepNode.focus();
+                        } else {
+                            // Focus on the step target.
+                            stepTarget.focus();
+                        }
+                    }
+                    e.preventDefault();
+                }
+            }).call(this);
             break;
     }
 };
@@ -1043,6 +1098,7 @@ Tour.prototype.positionStep = function(stepConfig) {
  */
 Tour.prototype.positionBackdrop = function(stepConfig) {
     if (stepConfig.backdrop) {
+        this.currentStepConfig.hasBackdrop = true;
         let backdrop = $('<div data-flexitour="backdrop"></div>');
 
         if (stepConfig.zIndex) {
