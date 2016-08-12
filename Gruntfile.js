@@ -24,7 +24,7 @@ module.exports = function(grunt) {
         umd: {
             all: {
                 options: {
-                    src: 'src/tour.js',
+                    src: 'transpiled/tour.js',
                     dest: 'build/tour.js',
                     objectToExport: 'Tour',
                     deps: {
@@ -48,12 +48,34 @@ module.exports = function(grunt) {
                 tasks: ["mocha_istanbul:coverage"],
             }
         },
+        babel: {
+            options: {
+                sourceMap: true,
+            },
+            dist: {
+                files: {
+                    "transpiled/tour.js": "src/tour.js",
+                }
+            }
+        },
+        concat: {
+            options: {
+                banner: "// jshint ignore: start\n",
+            },
+            dist: {
+                src: ['build/tour.js'],
+                dest: 'build/tour.js',
+            }
+        },
     });
     grunt.loadNpmTasks('grunt-mocha-istanbul');
+    grunt.loadNpmTasks('grunt-babel');
     grunt.loadNpmTasks('grunt-umd');
     grunt.loadNpmTasks('grunt-contrib-watch');
+    grunt.loadNpmTasks('grunt-contrib-concat');
 
-    grunt.registerTask("js", ["umd:all", "test"]);
+    grunt.registerTask("transpile", ["babel"]);
+    grunt.registerTask("js", ["transpile", "umd:all", "concat", "test"]);
     grunt.registerTask("test", ["mocha_istanbul:coverage"]);
     grunt.registerTask("default", ["js", "watch"]);
 };
