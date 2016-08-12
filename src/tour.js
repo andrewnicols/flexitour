@@ -767,6 +767,9 @@ Tour.prototype.announceStep = function(stepConfig) {
             .data('original-labelledby', target.attr('aria-labelledby'))
             .attr('aria-labelledby', stepId)
             .focus();
+    } else {
+        // Focus on the step instead.
+        this.currentStepNode.focus();
     }
 
     // TODO
@@ -784,6 +787,9 @@ Tour.prototype.announceStep = function(stepConfig) {
 Tour.prototype.handleKeyDown = function(e) {
     let tabbableSelector = 'a[href], link[href], [draggable=true], [contenteditable=true], :input:enabled, [tabindex], button';
     switch (e.keyCode) {
+        case 27:
+            this.endTour();
+            break;
         // 117 = F6 - switch between step and target.
         case 117:
             (function() {
@@ -812,11 +818,11 @@ Tour.prototype.handleKeyDown = function(e) {
                     // Trapping tab focus is only handled for those steps with a backdrop.
                     return;
                 }
+
+                // Find all tabbable locations.
                 let activeElement = $(document.activeElement);
-
+                let stepTarget = this.getStepTarget(this.currentStepConfig);
                 let tabbableNodes = $(tabbableSelector);
-                let nextNode;
-
                 let currentIndex;
                 tabbableNodes.filter(function(index, element) {
                     if (activeElement.is(element)) {
@@ -825,20 +831,32 @@ Tour.prototype.handleKeyDown = function(e) {
                     }
                 });
 
+                let nextIndex;
+                let nextNode;
+                let focusRelevant;
                 if (currentIndex) {
                     let direction = 1;
                     if (e.shiftKey) {
                         direction = -1;
                     }
-                    nextNode = $(tabbableNodes[currentIndex + direction]);
+                    nextIndex = currentIndex;
+                    do {
+                        nextIndex += direction;
+                        nextNode = $(tabbableNodes[nextIndex]);
+                    } while (nextNode.length && nextNode.is(':disabled') || nextNode.is(':hidden'));
+                    if (nextNode.length) {
+                        // A new f
+                        focusRelevant = nextNode.closest(stepTarget).length;
+                        focusRelevant = focusRelevant || nextNode.closest(this.currentStepNode).length;
+                    } else {
+                        // Unable to find the target somehow.
+                        focusRelevant = false;
+                    }
                 }
 
-                let stepTarget = this.getStepTarget(this.currentStepConfig);
-
-                let focusRelevant = nextNode.closest(stepTarget).length;
-                    focusRelevant = focusRelevant || nextNode.closest(this.currentStepNode).length;
-
-                if (!focusRelevant) {
+                if (focusRelevant) {
+                    nextNode.focus();
+                } else {
                     if (e.shiftKey) {
                         // Focus on the last tabbable node in the step.
                         this.currentStepNode.find(tabbableSelector).last().focus();
@@ -851,8 +869,8 @@ Tour.prototype.handleKeyDown = function(e) {
                             stepTarget.focus();
                         }
                     }
-                    e.preventDefault();
                 }
+                e.preventDefault();
             }).call(this);
             break;
     }
