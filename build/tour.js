@@ -378,7 +378,6 @@ Tour.prototype.isStepPotentiallyVisible = function (stepConfig) {
     }
 
     if (typeof stepConfig.delay !== 'undefined' && stepConfig.delay) {
-        // TODO...
         // Only return true if the activated has not been used yet.
         return true;
     }
@@ -729,7 +728,6 @@ Tour.prototype.addStepToPage = function (stepConfig) {
         });
 
         // Position the step on the page.
-        // TODO generalise this. At the moment it includes popper.
         animationTarget.promise().then($.proxy(function () {
             this.positionStep(stepConfig);
         }, this));
@@ -750,6 +748,13 @@ Tour.prototype.addStepToPage = function (stepConfig) {
         $(stepConfig.attachTo).append(this.currentStepNode);
 
         this.currentStepNode.offset(this.calculateStepPositionInPage());
+
+        this.currentStepPopper = new Popper($('body'), this.currentStepNode[0], {
+            placement: stepConfig.placement + '-start',
+            arrowElement: '[data-role="arrow"]',
+            // Empty the modifiers. We've already placed the step and don't want it moved.
+            modifiers: []
+        });
     }
 
     animationTarget.promise().done($.proxy(function () {
@@ -757,6 +762,10 @@ Tour.prototype.addStepToPage = function (stepConfig) {
         this.currentStepNode.fadeIn('', $.proxy(function () {
             // Announce via ARIA.
             this.announceStep(stepConfig);
+
+            // Update the popper location again.
+            // When it is positioned whilst hidden, it can be inaccurate.
+            this.currentStepPopper.update();
         }, this));
     }, this));
 
@@ -1138,8 +1147,8 @@ Tour.prototype.positionStep = function (stepConfig) {
 
     this.currentStepPopper = new Popper(this.getStepTarget(stepConfig), content[0], {
         placement: stepConfig.placement + '-start',
-        flipBehavior: flipBehavior,
         removeOnDestroy: true,
+        flipBehavior: flipBehavior,
         arrowElement: '[data-role="arrow"]',
         modifiers: ['shift', 'offset', 'preventOverflow', 'keepTogether', this.centerPopper, 'arrow', 'flip', 'applyStyle']
     });
@@ -1223,8 +1232,6 @@ Tour.prototype.positionBackdrop = function (stepConfig) {
             if (stepConfig.zIndex) {
                 backdrop.css('zIndex', stepConfig.zIndex);
                 background.css('zIndex', stepConfig.zIndex + 1);
-
-                // TODO Store the old zIndex.
                 targetNode.css('zIndex', stepConfig.zIndex + 2);
             }
 
@@ -1333,7 +1340,6 @@ Tour.prototype.centerPopper = function (data) {
 if ((typeof exports === 'undefined' ? 'undefined' : _typeof(exports)) === 'object') {
     module.exports = Tour;
 }
-//# sourceMappingURL=tour.js.map
 
 return Tour;
 
