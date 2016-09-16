@@ -24,7 +24,7 @@ module.exports = function(grunt) {
         umd: {
             all: {
                 options: {
-                    src: 'transpiled/tour.js',
+                    src: 'build/tour.js',
                     dest: 'build/tour.js',
                     objectToExport: 'Tour',
                     deps: {
@@ -50,11 +50,11 @@ module.exports = function(grunt) {
         },
         babel: {
             options: {
-                sourceMap: true,
+                sourceMap: false,
             },
             dist: {
                 files: {
-                    "transpiled/tour.js": "src/tour.js",
+                    "build/tour.js": "src/tour.js",
                 }
             }
         },
