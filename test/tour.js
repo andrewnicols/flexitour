@@ -671,18 +671,19 @@ describe('Tour', function() {
 
         it("Should destroy the popper", function() {
             t.currentStepNode = $('<div></div>');
-            t.currentStepPopper = {destroy: sinon.spy()};
+            var popper = t.currentStepPopper = {destroy: sinon.spy()};
 
             expect(t.hide()).to.equal(t);
-            expect(t.currentStepPopper.destroy).to.have.been.called;
+            expect(popper.destroy).to.have.been.called;
+            expect(t.currentStepPopper).to.be.null;
         });
 
         it("Should hide the node", function() {
-            t.currentStepNode = $('<div></div>');
+            var testNode =t.currentStepNode = $('<div></div>');
 
             expect(t.hide()).to.equal(t);
             // Note: jsdom breaks :hidden filter because it does not have real layout.
-            expect(t.currentStepNode.css('display')).to.equal('none');
+            expect(testNode.css('display')).to.equal('none');
         });
 
         it("Should reset the step listeners", function() {

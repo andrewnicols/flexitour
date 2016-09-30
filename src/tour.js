@@ -481,6 +481,19 @@ Tour.prototype.getStepConfig = function(stepNumber) {
  * @return  {Object}                    The normalised step configuration
  */
 Tour.prototype.normalizeStepConfig = function(stepConfig) {
+
+    if (typeof stepConfig.reflex !== 'undefined' && typeof stepConfig.moveAfterClick === 'undefined') {
+        stepConfig.moveAfterClick = stepConfig.reflex;
+    }
+
+    if (typeof stepConfig.element !== 'undefined' && typeof stepConfig.target === 'undefined') {
+        stepConfig.target = stepConfig.element;
+    }
+
+    if (typeof stepConfig.content !== 'undefined' && typeof stepConfig.body === 'undefined') {
+        stepConfig.body = stepConfig.content;
+    }
+
     stepConfig = $.extend({}, this.stepDefaults, stepConfig);
 
     stepConfig = $.extend({}, {
@@ -580,7 +593,9 @@ Tour.prototype.processStepListeners = function(stepConfig) {
         this.listeners.push(
             {
                 node: targetNode,
-                args: ['click', $.proxy(this.next, this)],
+                args: ['click', function() {
+                    window.setTimeout($.proxy(this.next, this), 100)
+                }],
             }
         );
     }
@@ -685,7 +700,7 @@ Tour.prototype.addStepToPage = function(stepConfig) {
     let stepContent = stepConfig.template;
 
     // Create the stepNode from the template data.
-    this.currentStepNode = $('<span data-flexitour="container"></span>')
+    let currentStepNode = $('<span data-flexitour="container"></span>')
         .html(stepConfig.template)
         .hide();
 
@@ -700,27 +715,34 @@ Tour.prototype.addStepToPage = function(stepConfig) {
         }
 
         if (stepConfig.zIndex) {
-            this.currentStepNode.css('zIndex', stepConfig.zIndex + 1);
+            currentStepNode.css('zIndex', stepConfig.zIndex + 1);
         }
 
         // Add the backdrop.
         this.positionBackdrop(stepConfig);
 
         if (stepConfig.attachPoint === 'append') {
-            $(stepConfig.attachTo).append(this.currentStepNode);
+            $(stepConfig.attachTo).append(currentStepNode);
+            this.currentStepNode = currentStepNode;
         } else {
-            this.currentStepNode.insertAfter($(stepConfig.attachTo));
+            this.currentStepNode = currentStepNode.insertAfter($(stepConfig.attachTo));
         }
 
-        // Animate scrollTop to scroll into view.
-        animationTarget.animate({
-            scrollTop: this.calculateScrollTop(stepConfig),
+        // Ensure that the step node is positioned.
+        // Some situations mean that the value is not properly calculated without this step.
+        this.currentStepNode.css({
+            top: 0,
+            left: 0,
         });
 
-        // Position the step on the page.
-        animationTarget.promise().then($.proxy(function() {
-                this.positionStep(stepConfig);
-            }, this));
+		animationTarget
+			.animate({
+				scrollTop: this.calculateScrollTop(stepConfig),
+			}).promise().then($.proxy(function() {
+					this.positionStep(stepConfig);
+					this.revealStep(stepConfig);
+				}, this)
+			);
 
     } else if (stepConfig.orphan) {
         stepConfig.isOrphan = true;
@@ -733,10 +755,11 @@ Tour.prototype.addStepToPage = function(stepConfig) {
         this.positionBackdrop(stepConfig);
 
         // This is an orphaned step.
-        this.currentStepNode.addClass('orphan');
+        currentStepNode.addClass('orphan');
 
         // It lives in the body.
-        $(stepConfig.attachTo).append(this.currentStepNode);
+        $(stepConfig.attachTo).append(currentStepNode);
+        this.currentStepNode = currentStepNode;
 
         this.currentStepNode.offset(this.calculateStepPositionInPage());
 
@@ -749,29 +772,31 @@ Tour.prototype.addStepToPage = function(stepConfig) {
                 modifiers: [],
             }
         );
+
+        this.revealStep(stepConfig);
     }
 
-    animationTarget.promise()
-        .done($.proxy(function() {
-            // Fade the step in.
-            this.currentStepNode.fadeIn('', $.proxy(function() {
-                    // Announce via ARIA.
-                    this.announceStep(stepConfig);
+    return this;
+};
 
-                    // Update the popper location again.
-                    // When it is positioned whilst hidden, it can be inaccurate.
-                    this.currentStepPopper.update();
 
-                    // Focus on the current step Node.
+Tour.prototype.revealStep = function(stepConfig) {
+    // Fade the step in.
+    this.currentStepNode.fadeIn('', $.proxy(function() {
+            // Announce via ARIA.
+            this.announceStep(stepConfig);
+
+            // Focus on the current step Node.
+            this.currentStepNode.focus();
+            window.setTimeout($.proxy(function() {
+                // After a brief delay, focus again.
+                // There seems to be an issue with Jaws where it only reads the dialogue title initially.
+                // This second focus causes it to read the full dialogue.
+                if (this.currentStepNode) {
                     this.currentStepNode.focus();
-                    window.setTimeout($.proxy(function() {
-                        // After a brief delay, focus again.
-                        // There seems to be an issue with Jaws where it only reads the dialogue title initially.
-                        // This second focus causes it to read the full dialogue.
-                        this.currentStepNode.focus();
-                    }, this), 100);
+                }
+            }, this), 100);
 
-                }, this));
         }, this));
 
     return this;
