@@ -593,9 +593,12 @@ Tour.prototype.processStepListeners = function(stepConfig) {
         this.listeners.push(
             {
                 node: targetNode,
-                args: ['click', function() {
-                    window.setTimeout($.proxy(this.next, this), 100)
-                }],
+                args: ['click', $.proxy(function(e) {
+                    if ($(e.target).parents('[data-flexitour="container"]').length === 0) {
+                        // Ignore clicks when they are in the flexitour.
+                        window.setTimeout($.proxy(this.next, this), 100)
+                    }
+                }, this)],
             }
         );
     }
@@ -735,14 +738,14 @@ Tour.prototype.addStepToPage = function(stepConfig) {
             left: 0,
         });
 
-		animationTarget
-			.animate({
-				scrollTop: this.calculateScrollTop(stepConfig),
-			}).promise().then($.proxy(function() {
-					this.positionStep(stepConfig);
-					this.revealStep(stepConfig);
-				}, this)
-			);
+        animationTarget
+            .animate({
+                scrollTop: this.calculateScrollTop(stepConfig),
+            }).promise().then($.proxy(function() {
+                    this.positionStep(stepConfig);
+                    this.revealStep(stepConfig);
+                }, this)
+            );
 
     } else if (stepConfig.orphan) {
         stepConfig.isOrphan = true;
@@ -1154,8 +1157,14 @@ Tour.prototype.positionStep = function(stepConfig) {
             break;
     }
 
+    let target = this.getStepTarget(stepConfig);
+    let background = $('[data-flexitour="step-background"]');
+    if (background.length) {
+        target = background;
+    }
+
     this.currentStepPopper = new Popper(
-        this.getStepTarget(stepConfig),
+        target,
         content[0], {
             placement: stepConfig.placement + '-start',
             removeOnDestroy: true,
@@ -1198,15 +1207,28 @@ Tour.prototype.positionBackdrop = function(stepConfig) {
             let targetNode = this.getStepTarget(stepConfig);
 
             let buffer = 10;
-            buffer = 0;
 
             background.css({
-                width: (buffer * 2) + targetNode.outerWidth(),
-                height: (buffer * 2) + targetNode.outerHeight(),
-                left: buffer + targetNode.offset().left,
-                top: buffer + targetNode.offset().top,
+                width: targetNode.outerWidth() + buffer + buffer,
+                height: targetNode.outerHeight() + buffer + buffer,
+                left: targetNode.offset().left - buffer,
+                top: targetNode.offset().top - buffer,
                 backgroundColor: this.calculateInherittedBackgroundColor(targetNode),
             });
+
+            if (targetNode.offset().left < buffer) {
+                background.css({
+                    width: targetNode.outerWidth() + targetNode.offset().left + buffer,
+                    left:targetNode.offset().left,
+                });
+            }
+
+            if (targetNode.offset().top < buffer) {
+                background.css({
+                    height: targetNode.outerHeight() + targetNode.offset().top + buffer,
+                    top:targetNode.offset().top,
+                });
+            }
 
             let targetRadius = targetNode.css('borderRadius');
             if (targetRadius && targetRadius !== $('body').css('borderRadius')) {
@@ -1214,7 +1236,7 @@ Tour.prototype.positionBackdrop = function(stepConfig) {
             }
 
             let targetPosition = this.calculatePosition(targetNode);
-            if (targetPosition) {
+            if (targetPosition === 'fixed') {
                 background.css('top', 0);
             }
 

@@ -31,7 +31,7 @@ module.exports = function(grunt) {
                         default: ['$', 'Popper'],
                         amd: [
                             {'jquery': '$'},
-                            {'local_usertours/popper': 'Popper'}
+                            {'tool_usertours/popper': 'Popper'}
                         ],
                         cjs: ['jquery', 'popper.js']
                     }

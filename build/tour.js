@@ -2,7 +2,7 @@
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module unless amdModuleId is set
-    define(["jquery","local_usertours/popper"], function (a0,b1) {
+    define(["jquery","tool_usertours/popper"], function (a0,b1) {
       return (root['Tour'] = factory(a0,b1));
     });
   } else if (typeof exports === 'object') {
@@ -609,9 +609,12 @@ Tour.prototype.processStepListeners = function (stepConfig) {
         var targetNode = this.getStepTarget(stepConfig);
         this.listeners.push({
             node: targetNode,
-            args: ['click', function () {
-                window.setTimeout($.proxy(this.next, this), 100);
-            }]
+            args: ['click', $.proxy(function (e) {
+                if ($(e.target).parents('[data-flexitour="container"]').length === 0) {
+                    // Ignore clicks when they are in the flexitour.
+                    window.setTimeout($.proxy(this.next, this), 100);
+                }
+            }, this)]
         });
     }
 
@@ -1153,7 +1156,13 @@ Tour.prototype.positionStep = function (stepConfig) {
             break;
     }
 
-    this.currentStepPopper = new Popper(this.getStepTarget(stepConfig), content[0], {
+    var target = this.getStepTarget(stepConfig);
+    var background = $('[data-flexitour="step-background"]');
+    if (background.length) {
+        target = background;
+    }
+
+    this.currentStepPopper = new Popper(target, content[0], {
         placement: stepConfig.placement + '-start',
         removeOnDestroy: true,
         flipBehavior: flipBehavior,
@@ -1194,15 +1203,28 @@ Tour.prototype.positionBackdrop = function (stepConfig) {
             var targetNode = this.getStepTarget(stepConfig);
 
             var buffer = 10;
-            buffer = 0;
 
             background.css({
-                width: buffer * 2 + targetNode.outerWidth(),
-                height: buffer * 2 + targetNode.outerHeight(),
-                left: buffer + targetNode.offset().left,
-                top: buffer + targetNode.offset().top,
+                width: targetNode.outerWidth() + buffer + buffer,
+                height: targetNode.outerHeight() + buffer + buffer,
+                left: targetNode.offset().left - buffer,
+                top: targetNode.offset().top - buffer,
                 backgroundColor: this.calculateInherittedBackgroundColor(targetNode)
             });
+
+            if (targetNode.offset().left < buffer) {
+                background.css({
+                    width: targetNode.outerWidth() + targetNode.offset().left + buffer,
+                    left: targetNode.offset().left
+                });
+            }
+
+            if (targetNode.offset().top < buffer) {
+                background.css({
+                    height: targetNode.outerHeight() + targetNode.offset().top + buffer,
+                    top: targetNode.offset().top
+                });
+            }
 
             var targetRadius = targetNode.css('borderRadius');
             if (targetRadius && targetRadius !== $('body').css('borderRadius')) {
@@ -1210,7 +1232,7 @@ Tour.prototype.positionBackdrop = function (stepConfig) {
             }
 
             var targetPosition = this.calculatePosition(targetNode);
-            if (targetPosition) {
+            if (targetPosition === 'fixed') {
                 background.css('top', 0);
             }
 
