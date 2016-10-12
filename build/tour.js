@@ -1204,12 +1204,17 @@ Tour.prototype.positionBackdrop = function (stepConfig) {
 
             var buffer = 10;
 
+            var colorNode = targetNode;
+            if (buffer) {
+                colorNode = $('body');
+            }
+
             background.css({
                 width: targetNode.outerWidth() + buffer + buffer,
                 height: targetNode.outerHeight() + buffer + buffer,
                 left: targetNode.offset().left - buffer,
                 top: targetNode.offset().top - buffer,
-                backgroundColor: this.calculateInherittedBackgroundColor(targetNode)
+                backgroundColor: this.calculateInherittedBackgroundColor(colorNode)
             });
 
             if (targetNode.offset().left < buffer) {
