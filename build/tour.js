@@ -2,7 +2,7 @@
 (function (root, factory) {
   if (typeof define === 'function' && define.amd) {
     // AMD. Register as an anonymous module unless amdModuleId is set
-    define(["jquery","tool_usertours/popper"], function (a0,b1) {
+    define(["jquery","popper"], function (a0,b1) {
       return (root['Tour'] = factory(a0,b1));
     });
   } else if (typeof exports === 'object') {
