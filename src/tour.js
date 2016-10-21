@@ -712,7 +712,11 @@ Tour.prototype.addStepToPage = function(stepConfig) {
         .stop(true, true);
 
     if (this.isStepActuallyVisible(stepConfig)) {
-        let zIndex = this.calculateZIndex(this.getStepTarget(stepConfig));
+        let targetNode = this.getStepTarget(stepConfig);
+
+        targetNode.data('flexitour', 'target');
+
+        let zIndex = this.calculateZIndex(targetNode);
         if (zIndex) {
             stepConfig.zIndex = zIndex + 1;
         }
@@ -847,6 +851,8 @@ Tour.prototype.announceStep = function(stepConfig) {
             .attr('aria-describedby', stepId + '-body')
             ;
     }
+
+    this.accessibilityShow(stepConfig);
 
     return this;
 };
@@ -1036,6 +1042,8 @@ Tour.prototype.hide = function(transition) {
 
     // Reset the listeners.
     this.resetStepListeners();
+
+    this.accessibilityHide();
 
     this.fireEventHandlers('afterHide');
 
@@ -1374,6 +1382,50 @@ Tour.prototype.centerPopper = function(data) {
     data.offsets.popper[side] += Math.max((reference[len]/2) -  (data.offsets.popper[len]/2), 0);
 
     return data;
+};
+
+Tour.prototype.accessibilityShow = function(stepConfig) {
+    let stateHolder = 'data-has-hidden';
+    let attrName = 'aria-hidden';
+    let hideFunction = function(child) {
+        let flexitourRole = child.data('flexitour');
+        if (flexitourRole) {
+            switch (flexitourRole) {
+                case 'container':
+                case 'target':
+                    return;
+            }
+        }
+
+        let hidden = child.attr(attrName);
+        if (!hidden) {
+            child.attr(stateHolder, true);
+            child.attr(attrName, true);
+        }
+    };
+
+    this.currentStepNode.siblings().each(function(index, node) {
+        hideFunction($(node));
+    });
+    this.currentStepNode.parentsUntil('body').siblings().each(function(index, node) {
+        hideFunction($(node));
+    });
+};
+
+Tour.prototype.accessibilityHide = function() {
+    let stateHolder = 'data-has-hidden';
+    let attrName = 'aria-hidden';
+    let showFunction = function(child) {
+        let hidden = child.attr(stateHolder);
+        if (typeof hidden !== 'undefined') {
+            child.removeAttr(stateHolder);
+            child.removeAttr(attrName);
+        }
+    };
+
+    $('[' + stateHolder + ']').each(function(index, node) {
+        showFunction($(node));
+    });
 };
 
 if (typeof exports === 'object') {
