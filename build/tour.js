@@ -778,6 +778,7 @@ Tour.prototype.addStepToPage = function (stepConfig) {
         this.currentStepNode.offset(this.calculateStepPositionInPage());
 
         this.currentStepPopper = new Popper($('body'), this.currentStepNode[0], {
+            removeOnDestroy: true,
             placement: stepConfig.placement + '-start',
             arrowElement: '[data-role="arrow"]',
             // Empty the modifiers. We've already placed the step and don't want it moved.
