@@ -769,6 +769,7 @@ Tour.prototype.addStepToPage = function(stepConfig) {
         this.currentStepNode = currentStepNode;
 
         this.currentStepNode.offset(this.calculateStepPositionInPage());
+        this.currentStepNode.css('position', 'fixed');
 
        this.currentStepPopper = new Popper(
             $('body'),
