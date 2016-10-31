@@ -635,6 +635,7 @@ describe('Tour', function() {
 
         it("Calls Popper if there is a stepNode to popperise", function() {
             t.currentStepNode = $('<div>');
+            t.getStepTarget.returns($('<div>'));
             expect(t.positionStep({})).to.equal(t);
             expect(global.Popper.called).to.equal(true);
         });
@@ -657,8 +658,10 @@ describe('Tour', function() {
         given(dataProvider()).it("Should get the correct flip behaviour for the placement",
         function(stepConfig, behaviour) {
             t.currentStepNode = $('<div>');
+            t.getStepTarget.returns($('<div>'));
             expect(t.positionStep(stepConfig)).to.equal(t);
-            expect(global.Popper.getCall(0).args[2].flipBehavior).to.eql(behaviour);
+            expect(global.Popper.getCall(0).args[2].modifiers.flip.behaviour)
+                .to.eql(behaviour);
         });
     });
 

@@ -771,14 +771,22 @@ Tour.prototype.addStepToPage = function(stepConfig) {
         this.currentStepNode.offset(this.calculateStepPositionInPage());
         this.currentStepNode.css('position', 'fixed');
 
-       this.currentStepPopper = new Popper(
+        this.currentStepPopper = new Popper(
             $('body'),
             this.currentStepNode[0], {
                 removeOnDestroy: true,
                 placement: stepConfig.placement + '-start',
                 arrowElement: '[data-role="arrow"]',
                 // Empty the modifiers. We've already placed the step and don't want it moved.
-                modifiers: [],
+                modifiers: {
+                    hide: {
+                        enabled: false,
+                    },
+                    applyStyle: {
+                        onLoad: null,
+                        enabled: false,
+                    },
+                }
             }
         );
 
@@ -1166,21 +1174,29 @@ Tour.prototype.positionStep = function(stepConfig) {
     }
 
     let target = this.getStepTarget(stepConfig);
+    var config = {
+        placement: stepConfig.placement + '-start',
+        removeOnDestroy: true,
+        modifiers: {
+            flip: {
+                behaviour: flipBehavior,
+            },
+            arrow: {
+                element: '[data-role="arrow"]',
+            },
+        },
+    };
+
+    var boundaryElement = target.closest('section, body');
+    if (boundaryElement.length) {
+        config.boundariesElement = boundaryElement[0];
+    }
+
     let background = $('[data-flexitour="step-background"]');
     if (background.length) {
         target = background;
     }
-
-    this.currentStepPopper = new Popper(
-        target,
-        content[0], {
-            placement: stepConfig.placement + '-start',
-            removeOnDestroy: true,
-            flipBehavior: flipBehavior,
-            arrowElement: '[data-role="arrow"]',
-            modifiers: ['shift', 'offset', 'preventOverflow', 'keepTogether', this.centerPopper, 'arrow', 'flip', 'applyStyle'],
-        }
-    );
+    this.currentStepPopper = new Popper(target, content[0], config);
 
     return this;
 };
