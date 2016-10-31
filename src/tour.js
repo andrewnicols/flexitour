@@ -596,7 +596,7 @@ Tour.prototype.processStepListeners = function(stepConfig) {
                 args: ['click', $.proxy(function(e) {
                     if ($(e.target).parents('[data-flexitour="container"]').length === 0) {
                         // Ignore clicks when they are in the flexitour.
-                        window.setTimeout($.proxy(this.next, this), 100)
+                        window.setTimeout($.proxy(this.next, this), 500)
                     }
                 }, this)],
             }
