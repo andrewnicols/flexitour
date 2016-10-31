@@ -1,6 +1,6 @@
 {
   "name": "flexitour",
-  "version": "0.9.7",
+  "version": "0.9.8",
   "description": "Flexible Tours library",
   "main": "index.js",
   "directories": {
@@ -35,6 +35,6 @@
   },
   "dependencies": {
     "jquery": "^3.1.0",
-    "popper.js": "^0.5.2"
+    "popper.js": "^1.0.0-alpha.3"
   }
 }
