@@ -1122,15 +1122,13 @@ Tour.prototype.calculateScrollTop = function(stepConfig) {
 Tour.prototype.calculateStepPositionInPage = function() {
     let viewportHeight = $(window).height();
     let stepHeight = this.currentStepNode.height();
-    let scrollTop = $(window).scrollTop();
 
     let viewportWidth = $(window).width();
     let stepWidth = this.currentStepNode.width();
-    let scrollLeft = $(window).scrollLeft();
 
     return {
-        top: Math.ceil(scrollTop + ((viewportHeight - stepHeight) / 2)),
-        left: Math.ceil(scrollLeft + ((viewportWidth - stepWidth) / 2)),
+        top: Math.ceil((viewportHeight - stepHeight) / 2),
+        left: Math.ceil((viewportWidth - stepWidth) / 2)
     };
 };
 
