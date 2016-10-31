@@ -1382,24 +1382,6 @@ Tour.prototype.calculatePosition = function(elem) {
     return null;
 };
 
-Tour.prototype.centerPopper = function(data) {
-    if (!this.isModifierRequired(Tour.prototype.centerPopper, this.modifiers.keepTogether)) {
-        console.warn('WARNING: keepTogether modifier is required by centerPopper modifier in order to work, be sure to include it before arrow!');
-        return data;
-    }
-
-    var placement   = data.placement.split('-')[0];
-    var reference   = data.offsets.reference;
-    var isVertical  = ['left', 'right'].indexOf(placement) !== -1;
-
-    var len         = isVertical ? 'height' : 'width';
-    var side        = isVertical ? 'top' : 'left';
-
-    data.offsets.popper[side] += Math.max((reference[len]/2) -  (data.offsets.popper[len]/2), 0);
-
-    return data;
-};
-
 Tour.prototype.accessibilityShow = function(stepConfig) {
     let stateHolder = 'data-has-hidden';
     let attrName = 'aria-hidden';
