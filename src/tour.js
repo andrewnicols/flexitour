@@ -808,7 +808,7 @@ Tour.prototype.revealStep = function(stepConfig) {
             window.setTimeout($.proxy(function() {
                 // After a brief delay, focus again.
                 // There seems to be an issue with Jaws where it only reads the dialogue title initially.
-                // This second focus causes it to read the full dialogue.
+                // This second focus helps it to read the full dialogue.
                 if (this.currentStepNode) {
                     this.currentStepNode.focus();
                 }
