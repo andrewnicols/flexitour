@@ -1382,6 +1382,13 @@ Tour.prototype.calculatePosition = function(elem) {
     return null;
 };
 
+/**
+ * Perform accessibility changes for step shown.
+ *
+ * This will add aria-hidden="true" to all siblings and parent siblings.
+ *
+ * @method  accessibilityShow
+ */
 Tour.prototype.accessibilityShow = function(stepConfig) {
     let stateHolder = 'data-has-hidden';
     let attrName = 'aria-hidden';
@@ -1410,6 +1417,13 @@ Tour.prototype.accessibilityShow = function(stepConfig) {
     });
 };
 
+/**
+ * Perform accessibility changes for step hidden.
+ *
+ * This will remove any newly added aria-hidden="true".
+ *
+ * @method  accessibilityHide
+ */
 Tour.prototype.accessibilityHide = function() {
     let stateHolder = 'data-has-hidden';
     let attrName = 'aria-hidden';
