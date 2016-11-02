@@ -1388,7 +1388,7 @@ Tour.prototype.calculatePosition = function(elem) {
  *
  * @method  accessibilityShow
  */
-Tour.prototype.accessibilityShow = function(stepConfig) {
+Tour.prototype.accessibilityShow = function() {
     let stateHolder = 'data-has-hidden';
     let attrName = 'aria-hidden';
     let hideFunction = function(child) {
