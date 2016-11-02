@@ -1186,7 +1186,7 @@ Tour.prototype.positionStep = function(stepConfig) {
         },
     };
 
-    var boundaryElement = target.closest('section, body');
+    var boundaryElement = target.closest('section');
     if (boundaryElement.length) {
         config.boundariesElement = boundaryElement[0];
     }
