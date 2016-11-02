@@ -745,11 +745,10 @@ Tour.prototype.addStepToPage = function(stepConfig) {
         animationTarget
             .animate({
                 scrollTop: this.calculateScrollTop(stepConfig),
-            }).promise().then($.proxy(function() {
+            }).promise().then(function() {
                     this.positionStep(stepConfig);
                     this.revealStep(stepConfig);
-                }, this)
-            );
+                }.bind(this));
 
     } else if (stepConfig.orphan) {
         stepConfig.isOrphan = true;
