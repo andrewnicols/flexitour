@@ -18,6 +18,20 @@ function Tour(config) {
 Tour.prototype.tourName;
 
 /**
+ * The name of the tour storage key.
+ *
+ * @property    {String}    storageKey
+ */
+Tour.prototype.storageKey;
+
+/**
+ * The session storage object
+ *
+ * @property    {Storage}   storage
+ */
+Tour.prototype.storage;
+
+/**
  * The original configuration as passed into the constructor.
  *
  * @property    {Object}    originalConfiguration
@@ -99,6 +113,14 @@ Tour.prototype.init = function(config) {
 
     // Apply configuration.
     this.configure.apply(this, arguments);
+
+    try {
+        this.storage = window.sessionStorage;
+        this.storageKey = 'tourstate_' + this.tourName;
+    } catch (e) {
+        this.storage = false;
+        this.storageKey = '';
+    }
 
     return this;
 };
@@ -260,6 +282,15 @@ Tour.prototype.getCurrentStepNumber = function() {
  */
 Tour.prototype.setCurrentStepNumber = function(stepNumber) {
     this.currentStepNumber = stepNumber;
+    if (this.storage) {
+        try {
+            this.storage.setItem(this.storageKey, stepNumber);
+        } catch (e) {
+            if (e.code === DOMException.QUOTA_EXCEEDED_ERR) {
+                this.storage.removeItem(this.storageKey);
+            }
+        }
+    }
 };
 
 /**
@@ -957,6 +988,16 @@ Tour.prototype.handleKeyDown = function(e) {
  * @chainable
  */
 Tour.prototype.startTour = function(startAt) {
+    if (this.storage && typeof startAt === 'undefined') {
+        let storageStartValue = this.storage.getItem(this.storageKey);
+        if (storageStartValue) {
+            let storageStartAt = parseInt(storageStartValue, 10);
+            if (storageStartAt <= this.steps.length) {
+                startAt = storageStartAt;
+            }
+        }
+    }
+
     if (typeof startAt === 'undefined') {
         startAt = this.getCurrentStepNumber();
     }
