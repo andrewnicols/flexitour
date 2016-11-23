@@ -390,12 +390,8 @@ describe('Tour', function() {
         given(dataProvider()).it("Should return the correct values in each testcase",
             function(stepConfig, expectation) {
                 expect(t.isStepActuallyVisible(stepConfig)).to.equal(expectation);
-            });
-
-        it("Should check the validity of step targets", function() {
-            t.getStepTarget.returns($('<span class="some-element"></span>'));
-            expect(t.isStepActuallyVisible({target: '.some-element'})).to.equal(true);
-        });
+            }
+        );
     });
 
     describe("isFirstStep", function() {
