@@ -773,12 +773,8 @@ Tour.prototype.addStepToPage = function (stepConfig) {
         // Add the backdrop.
         this.positionBackdrop(stepConfig);
 
-        if (stepConfig.attachPoint === 'append') {
-            stepConfig.attachTo.append(currentStepNode);
-            this.currentStepNode = currentStepNode;
-        } else {
-            this.currentStepNode = currentStepNode.insertAfter(stepConfig.attachTo);
-        }
+        $(document.body).append(currentStepNode);
+        this.currentStepNode = currentStepNode;
 
         // Ensure that the step node is positioned.
         // Some situations mean that the value is not properly calculated without this step.
@@ -807,7 +803,7 @@ Tour.prototype.addStepToPage = function (stepConfig) {
         currentStepNode.addClass('orphan');
 
         // It lives in the body.
-        stepConfig.attachTo.append(currentStepNode);
+        $(document.body).append(currentStepNode);
         this.currentStepNode = currentStepNode;
 
         this.currentStepNode.offset(this.calculateStepPositionInPage());
@@ -1231,11 +1227,6 @@ Tour.prototype.positionStep = function (stepConfig) {
         }
     };
 
-    var boundaryElement = target.closest('section');
-    if (boundaryElement.length) {
-        config.boundariesElement = boundaryElement[0];
-    }
-
     var background = $('[data-flexitour="step-background"]');
     if (background.length) {
         target = background;
@@ -1311,6 +1302,8 @@ Tour.prototype.positionBackdrop = function (stepConfig) {
             var targetPosition = this.calculatePosition(targetNode);
             if (targetPosition === 'fixed') {
                 background.css('top', 0);
+            } else if (targetPosition === 'absolute') {
+                background.css('position', 'fixed');
             }
 
             var fader = background.clone();
