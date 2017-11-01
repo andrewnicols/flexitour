@@ -730,7 +730,9 @@ describe('Tour', function() {
                 expect(t.processStepListeners({})).to.equal(t);
 
                 // Add 1 for the keypress listeners on the body.
-                let listenCount = t.currentStepNode.on.callCount + 1;
+                // Add 1 for the backdrop hide.
+                // Add 1 for the body click.
+                let listenCount = t.currentStepNode.on.callCount + 1 + 1 + 1;
                 expect(t.listeners).to.have.lengthOf(listenCount);
             });
 
@@ -744,7 +746,9 @@ describe('Tour', function() {
                 expect(target.on.called).to.equal(true);
 
                 // Add 1 for the keypress listeners on the body.
-                let listenCount = t.currentStepNode.on.callCount + 1;
+                // Add 1 for the backdrop hide.
+                // Add 1 for the body click.
+                let listenCount = t.currentStepNode.on.callCount + 1 + 1 + 1;
                 expect(t.listeners).to.have.lengthOf(listenCount + 1);
             });
 
@@ -758,7 +762,9 @@ describe('Tour', function() {
                 expect(target.on.called).to.equal(false);
 
                 // Add 1 for the keypress listeners on the body.
-                let listenCount = t.currentStepNode.on.callCount + 1;
+                // Add 1 for the backdrop hide.
+                // Add 1 for the body click.
+                let listenCount = t.currentStepNode.on.callCount + 1 + 1 + 1;
                 expect(t.listeners).to.have.lengthOf(listenCount);
             });
         });
