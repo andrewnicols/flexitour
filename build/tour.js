@@ -1107,6 +1107,16 @@ Tour.prototype.hide = function (transition) {
         $(this).remove();
     });
 
+    // Remove aria-describedby and tabindex attributes.
+    if (this.currentStepNode && this.currentStepNode.length) {
+        var stepId = this.currentStepNode.attr('id');
+        if (stepId) {
+            var currentStepElement = '[aria-describedby="' + stepId + '-body"]';
+            $(currentStepElement).removeAttr('tabindex');
+            $(currentStepElement).removeAttr('aria-describedby');
+        }
+    }
+
     // Reset the listeners.
     this.resetStepListeners();
 
