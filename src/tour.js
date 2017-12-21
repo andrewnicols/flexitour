@@ -921,7 +921,7 @@ Tour.prototype.announceStep = function(stepConfig) {
  * @param   {EventFacade} e
  */
 Tour.prototype.handleKeyDown = function(e) {
-    let tabbableSelector = 'a[href], link[href], [draggable=true], [contenteditable=true], :input:enabled, [tabindex], button';
+    let tabbableSelector = 'a[href], link[href], [draggable=true], [contenteditable=true], :input:enabled, [tabindex], button:enabled';
     switch (e.keyCode) {
         case 27:
             this.endTour();
@@ -940,8 +940,21 @@ Tour.prototype.handleKeyDown = function(e) {
                 let activeElement = $(document.activeElement);
                 let stepTarget = this.getStepTarget(this.currentStepConfig);
                 let tabbableNodes = $(tabbableSelector);
+                let dialogContainer = $('span[data-flexitour="container"]');
                 let currentIndex;
-                tabbableNodes.filter(function(index, element) {
+                // Filter out element which is not belong to target section or dialogue.
+                if (stepTarget) {
+                    tabbableNodes = tabbableNodes.filter(function (index, element) {
+                        return stepTarget != null
+                            && (stepTarget.has(element).length
+                                || dialogContainer.has(element).length
+                                || stepTarget.is(element)
+                                || dialogContainer.is(element));
+                    });
+                }
+
+                // Find index of focusing element.
+                tabbableNodes.each(function (index, element) {
                     if (activeElement.is(element)) {
                         currentIndex = index;
                         return false;
@@ -951,7 +964,7 @@ Tour.prototype.handleKeyDown = function(e) {
                 let nextIndex;
                 let nextNode;
                 let focusRelevant;
-                if (currentIndex) {
+                if (currentIndex != void 0) {
                     let direction = 1;
                     if (e.shiftKey) {
                         direction = -1;

@@ -921,7 +921,7 @@ Tour.prototype.announceStep = function (stepConfig) {
  * @param   {EventFacade} e
  */
 Tour.prototype.handleKeyDown = function (e) {
-    var tabbableSelector = 'a[href], link[href], [draggable=true], [contenteditable=true], :input:enabled, [tabindex], button';
+    var tabbableSelector = 'a[href], link[href], [draggable=true], [contenteditable=true], :input:enabled, [tabindex], button:enabled';
     switch (e.keyCode) {
         case 27:
             this.endTour();
@@ -940,8 +940,17 @@ Tour.prototype.handleKeyDown = function (e) {
                 var activeElement = $(document.activeElement);
                 var stepTarget = this.getStepTarget(this.currentStepConfig);
                 var tabbableNodes = $(tabbableSelector);
+                var dialogContainer = $('span[data-flexitour="container"]');
                 var currentIndex = void 0;
-                tabbableNodes.filter(function (index, element) {
+                // Filter out element which is not belong to target section or dialogue.
+                if (stepTarget) {
+                    tabbableNodes = tabbableNodes.filter(function (index, element) {
+                        return stepTarget != null && (stepTarget.has(element).length || dialogContainer.has(element).length || stepTarget.is(element) || dialogContainer.is(element));
+                    });
+                }
+
+                // Find index of focusing element.
+                tabbableNodes.each(function (index, element) {
                     if (activeElement.is(element)) {
                         currentIndex = index;
                         return false;
@@ -951,7 +960,7 @@ Tour.prototype.handleKeyDown = function (e) {
                 var nextIndex = void 0;
                 var nextNode = void 0;
                 var focusRelevant = void 0;
-                if (currentIndex) {
+                if (currentIndex != void 0) {
                     var direction = 1;
                     if (e.shiftKey) {
                         direction = -1;
@@ -1497,7 +1506,3 @@ Tour.prototype.accessibilityHide = function () {
 if ((typeof exports === 'undefined' ? 'undefined' : _typeof(exports)) === 'object') {
     module.exports = Tour;
 }
-
-return Tour;
-
-}));
