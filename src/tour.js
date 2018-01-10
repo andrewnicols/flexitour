@@ -1265,6 +1265,57 @@ Tour.prototype.positionStep = function(stepConfig) {
                 element: '[data-role="arrow"]',
             },
         },
+        onCreate: function(data) {
+            recalculateArrowPosition(data);
+        },
+        onUpdate: function(data) {
+            recalculateArrowPosition(data);
+        },
+    };
+
+    let recalculateArrowPosition = function(data) {
+        let placement = data.placement.split('-')[0];
+        const isVertical = ['left', 'right'].indexOf(placement) !== -1;
+        const arrowElement = data.instance.popper.querySelector('[data-role="arrow"]');
+        if (isVertical) {
+            let arrowHeight = parseFloat(window.getComputedStyle(arrowElement).height);
+            let arrowOffset = parseFloat(window.getComputedStyle(arrowElement).top);
+            let popperHeight = parseFloat(window.getComputedStyle(data.instance.popper).height);
+            let popperOffset = parseFloat(window.getComputedStyle(data.instance.popper).top);
+            let popperBorderWidth = parseFloat($('.modal-content').css('borderTopWidth'));
+            let popperBorderRadiusWidth = parseFloat($('.modal-content').css('borderTopLeftRadius'));
+            let arrowPos = arrowOffset + (arrowHeight / 2);
+            let maxPos = popperHeight + popperOffset - popperBorderWidth - popperBorderRadiusWidth;
+            let minPos = popperOffset + popperBorderWidth + popperBorderRadiusWidth;
+            if (arrowPos >= maxPos || arrowPos <= minPos) {
+                let newArrowPos = 0;
+                if (arrowPos > (popperHeight / 2)) {
+                    newArrowPos = maxPos - arrowHeight;
+                } else {
+                    newArrowPos = minPos + arrowHeight;
+                }
+                $(arrowElement).css('top', newArrowPos);
+            }
+        } else {
+            let arrowWidth = parseFloat(window.getComputedStyle(arrowElement).width);
+            let arrowOffset = parseFloat(window.getComputedStyle(arrowElement).left);
+            let popperWidth = parseFloat(window.getComputedStyle(data.instance.popper).width);
+            let popperOffset = parseFloat(window.getComputedStyle(data.instance.popper).left);
+            let popperBorderWidth = parseFloat($('.modal-content').css('borderTopWidth'));
+            let popperBorderRadiusWidth = parseFloat($('.modal-content').css('borderTopLeftRadius'));
+            let arrowPos = arrowOffset + (arrowWidth / 2);
+            let maxPos = popperWidth + popperOffset - popperBorderWidth - popperBorderRadiusWidth;
+            let minPos = popperOffset + popperBorderWidth + popperBorderRadiusWidth;
+            if (arrowPos >= maxPos || arrowPos <= minPos) {
+                let newArrowPos = 0;
+                if (arrowPos > (popperWidth / 2)) {
+                    newArrowPos = maxPos - arrowWidth;
+                } else {
+                    newArrowPos = minPos + arrowWidth;
+                }
+                $(arrowElement).css('left', newArrowPos);
+            }
+        }
     };
 
     let background = $('[data-flexitour="step-background"]');
